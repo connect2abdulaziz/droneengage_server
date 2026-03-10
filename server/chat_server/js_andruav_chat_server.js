@@ -989,23 +989,31 @@ function fn_startChatServer() {
     const v_path = require('path');
     const v_WebSocketServer = require('ws').Server;
     const c_https = require('https');
+    const c_http = require('http');
 
-    // HTTPS server options
-    const options = {
-        key: v_fs.readFileSync(v_path.join(__dirname, '../', global.m_serverconfig.m_configuration.ssl_key_file.toString())),
-        cert: v_fs.readFileSync(v_path.join(__dirname, '../', global.m_serverconfig.m_configuration.ssl_cert_file.toString()))
-    };
-
-    // Create HTTPS server with Express
     const app = new v_express();
-    const wserver = c_https.createServer(options, app);
 
-    // Start HTTPS server
+    let wserver;
+    if (global.m_serverconfig.m_configuration.enable_SSL === true) {
+        const options = {
+            key: v_fs.readFileSync(v_path.join(__dirname, '../', global.m_serverconfig.m_configuration.ssl_key_file.toString())),
+            cert: v_fs.readFileSync(v_path.join(__dirname, '../', global.m_serverconfig.m_configuration.ssl_cert_file.toString()))
+        };
+
+        wserver = c_https.createServer(options, app);
+    }
+    else {
+        wserver = c_http.createServer(app);
+    }
+
+    const v_port = process.env.PORT || global.m_serverconfig.m_configuration.server_port;
+    const v_host = '0.0.0.0';
+
     wserver.listen(
-        global.m_serverconfig.m_configuration.server_port,
-        global.m_serverconfig.m_configuration.server_ip,
+        v_port,
+        v_host,
         () => {
-            console.log(`HTTPS server started on ${global.m_serverconfig.m_configuration.server_ip}:${global.m_serverconfig.m_configuration.server_port}`);
+            console.log(`Server started on ${v_host}:${v_port} SSL=${global.m_serverconfig.m_configuration.enable_SSL === true}`);
         }
     );
 
