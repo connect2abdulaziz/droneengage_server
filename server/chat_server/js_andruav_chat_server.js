@@ -989,16 +989,36 @@ function fn_startChatServer() {
     const v_path = require('path');
     const v_WebSocketServer = require('ws').Server;
     const c_https = require('https');
+    const c_http = require('http');
 
-    // HTTPS server options
-    const options = {
-        key: v_fs.readFileSync(v_path.join(__dirname, '../', global.m_serverconfig.m_configuration.ssl_key_file.toString())),
-        cert: v_fs.readFileSync(v_path.join(__dirname, '../', global.m_serverconfig.m_configuration.ssl_cert_file.toString()))
-    };
+    const cfg = global.m_serverconfig.m_configuration;
+    const keyPath = v_path.join(__dirname, '../', (cfg.ssl_key_file || '').toString());
+    const certPath = v_path.join(__dirname, '../', (cfg.ssl_cert_file || '').toString());
+    const useSSL =
+        cfg.enable_SSL === true &&
+        v_fs.existsSync(keyPath) &&
+        v_fs.existsSync(certPath);
 
-    // Create HTTPS server with Express
+    // Create HTTP/HTTPS server with Express
     const app = new v_express();
-    const wserver = c_https.createServer(options, app);
+    let wserver;
+
+    if (useSSL) {
+        const options = {
+            key: v_fs.readFileSync(keyPath),
+            cert: v_fs.readFileSync(certPath)
+        };
+        wserver = c_https.createServer(options, app);
+    } else {
+        if (cfg.enable_SSL === true && (!v_fs.existsSync(keyPath) || !v_fs.existsSync(certPath))) {
+            console.log(
+                global.Colors.FgYellow +
+                    'SSL enabled but key/cert files missing – starting HTTP (e.g. behind Railway TLS)' +
+                    global.Colors.Reset
+            );
+        }
+        wserver = c_http.createServer(app);
+    }
 
     // Start HTTPS server
     wserver.listen(
